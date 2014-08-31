@@ -67,7 +67,7 @@ Saves the values passed as additional arguments to the `filename` provided.
 `love.filesystem` is used, so it can be found in the
 [save directory](http://love2d.org/wiki/love.filesystem).
 
-###`lady.save_all(filename)`
+###`lady.load_all(filename)`
 
 Returns the values saved in the `filename` provided. `love.filesystem` is used,
 so it looks in the [save directory](http://love2d.org/wiki/love.filesystem).
