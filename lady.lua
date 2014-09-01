@@ -11,11 +11,15 @@ local kw = {['and'] = true, ['break'] = true, ['do'] = true, ['else'] = true,
 local function valid_identifier(s)
 	return s:match '^[_%a][_%w]*$' and not kw[s]
 end
+local function valid_classname(s)
+	return s:match '^%a[_%w]*$' and not kw[s]
+end
+
 
 function M.register_class(c, name)
 	name = name or c.name or c.__name__
 	assert(type(name) == 'string', 'class must be given a string name')
-	assert(valid_identifier(name), 'name must be a valid identifier')
+	assert(valid_classname(name), 'name must be a valid identifier that doesn\'t start with an underscore')
 	assert(registered_classes_by_name[name] == nil, ('class with the name %s has already been registered'):format(name))
 	assert(registered_classes_by_value[c] == nil, 'class has already been registered')
 	registered_classes_by_name[name] = c
@@ -81,25 +85,25 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 		-- assume MiddleClass
 		classname = registered_classes_by_value[t.class]
 		classkey = 'class'
-		pretable = 'setmetatable({'
+		pretable = '_S({'
 		posttable = '}, ' .. classname .. '.__instanceDict)'
 	elseif registered_classes_by_value[t.__baseclass] then
 		-- assume SECS
 		classname = registered_classes_by_value[t.__baseclass]
 		classkey = '__baseclass'
-		pretable = 'setmetatable({'
-		posttable = '}, getmetatable(' .. classname .. '))'
+		pretable = '_S({'
+		posttable = '}, _M(' .. classname .. '))'
 	elseif registered_classes_by_value[getmetatable(t)] then
 		-- assume hump.class
 		classname = registered_classes_by_value[getmetatable(t)]
-		pretable = 'setmetatable({'
+		pretable = '_S({'
 		posttable = '}, ' .. classname .. ')'
 	elseif registered_classes_by_value[t.__class__] then
 		-- assume Slither
 		local cls = t.__class__
 		classname = registered_classes_by_value[cls]
-		pretable = 'setmetatable({'
-		posttable = '}, slithermt(' .. classname .. '))'
+		pretable = '_S({'
+		posttable = '}, _I(' .. classname .. '))'
 	end
 	local m = {'local _', name, ' = ', pretable}
 	local mi = 4
@@ -224,7 +228,7 @@ local load_mt = {__index = registered_classes_by_name}
 function M.load_all(savename)
 	local contents = love.filesystem.read(savename)
 	local s = loadstring(contents)
-	setfenv(s, setmetatable({setmetatable = setmetatable, getmetatable = getmetatable, slithermt = slither_instance_mt}, load_mt))
+	setfenv(s, setmetatable({_S = setmetatable, _M = getmetatable, _I = slither_instance_mt}, load_mt))
 	return s()
 end
 

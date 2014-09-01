@@ -61,6 +61,11 @@ Registers `class`. It will be expected that the argument `classname` is
 provided. If absent, `class.name` will be used instead. The name of the class
 should be a string that contains a valid Lua identifier.
 
+Names starting with an underscore are reserved and cannot be used for Lady.
+Similarly, when using Slither, nested classnames (like `"foods.Cake"`) are not
+supported. If you have classes with these kinds of names, provide a custom
+classname to `lady.register_class`.
+
 This function returns `class`, so it can be used as a decorator.
 
 ###`lady.save_all(filename, ...)`
