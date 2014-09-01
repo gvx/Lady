@@ -37,7 +37,9 @@ local Player = lady.register_class(class:new(), 'Player')
 -- using hump.class:
 local Player = lady.register_class(class{}, 'Player')
 -- using Slither:
-lady.register_class(class "Player" {})
+class "Player" {
+    __attributes__ = {lady.register_class}
+}
 -- if you prefer, you can register your classes in another place
 -- for example, all in the same place:
 lady.register_class(Player, 'Player')
