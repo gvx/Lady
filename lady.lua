@@ -1,4 +1,4 @@
-local pairs, ipairs, tostring, type, concat, dump, floor = pairs, ipairs, tostring, type, table.concat, string.dump, math.floor
+local pairs, ipairs, tostring, type, getmetatable, setmetatable, concat, sort, dump, floor = pairs, ipairs, tostring, type, getmetatable, setmetatable, table.concat, table.sort, string.dump, math.floor
 local M = {}
 local registered_things_by_name = {}
 local registered_things_by_value = {}
@@ -98,27 +98,29 @@ local function is_cyclic(memo, sub, super)
 end
 
 function userdata_constructor:World(srefs, memo, rev_memo)
+	local s = memo[self]
 	if self:getCallbacks() ~= nil then
-		srefs[#srefs + 1] = {memo[self], ':', 'setCallbacks', self:getCallbacks()}
+		srefs[#srefs + 1] = {s, ':', 'setCallbacks', self:getCallbacks()}
 	end
 	if self:getContactFilter() ~= nil then
-		srefs[#srefs + 1] = {memo[self], ':', 'setContactFilter', self:getContactFilter()}
+		srefs[#srefs + 1] = {s, ':', 'setContactFilter', self:getContactFilter()}
 	end
 	local x, y = self:getGravity( )
 	return x, y, self:isSleepingAllowed()
 end
 function userdata_constructor:Body(srefs, memo, rev_memo)
-	srefs[#srefs + 1] = {memo[self], ':', 'setSleepingAllowed', self:isSleepingAllowed()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setAngle', self:getAngle()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setAngularDamping', self:getAngularDamping()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setAngularVelocity', self:getAngularVelocity()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setGravityScale', self:getGravityScale()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setInertia', self:getInertia()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setLinearDamping', self:getLinearDamping()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setLinearVelocity', self:getLinearVelocity()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setMass', self:getMass()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setAwake', self:isAwake()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setBullet', self:isBullet()}
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setSleepingAllowed', self:isSleepingAllowed()}
+	srefs[#srefs + 1] = {s, ':', 'setAngle', self:getAngle()}
+	srefs[#srefs + 1] = {s, ':', 'setAngularDamping', self:getAngularDamping()}
+	srefs[#srefs + 1] = {s, ':', 'setAngularVelocity', self:getAngularVelocity()}
+	srefs[#srefs + 1] = {s, ':', 'setGravityScale', self:getGravityScale()}
+	srefs[#srefs + 1] = {s, ':', 'setInertia', self:getInertia()}
+	srefs[#srefs + 1] = {s, ':', 'setLinearDamping', self:getLinearDamping()}
+	srefs[#srefs + 1] = {s, ':', 'setLinearVelocity', self:getLinearVelocity()}
+	srefs[#srefs + 1] = {s, ':', 'setMass', self:getMass()}
+	srefs[#srefs + 1] = {s, ':', 'setAwake', self:isAwake()}
+	srefs[#srefs + 1] = {s, ':', 'setBullet', self:isBullet()}
 	local x, y = self:getPosition()
 	return self.getWorld and self:getWorld() or rev_memo[1], x, y, self:getType()
 end
@@ -136,17 +138,18 @@ function userdata_constructor:PolygonShape(srefs)
 	return self:getPoints()
 end
 function userdata_constructor:Fixture(srefs, memo, rev_memo)
+	local s = memo[self]
 	--the ones commented out are just replicating the data from get/setFilterData
-	--srefs[#srefs + 1] = {memo[self], ':', 'setCategory', self:getCategory()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setDensity', self:getDensity()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setFilterData', self:getFilterData()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setFriction', self:getFriction()}
-	--srefs[#srefs + 1] = {memo[self], ':', 'setGroupIndex', self:getGroupIndex()}
-	--srefs[#srefs + 1] = {memo[self], ':', 'setMask', self:getMask()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setRestitution', self:getRestitution()}
-	srefs[#srefs + 1] = {memo[self], ':', 'setSensor', self:isSensor()}
+	--srefs[#srefs + 1] = {s, ':', 'setCategory', self:getCategory()}
+	srefs[#srefs + 1] = {s, ':', 'setDensity', self:getDensity()}
+	srefs[#srefs + 1] = {s, ':', 'setFilterData', self:getFilterData()}
+	srefs[#srefs + 1] = {s, ':', 'setFriction', self:getFriction()}
+	--srefs[#srefs + 1] = {s, ':', 'setGroupIndex', self:getGroupIndex()}
+	--srefs[#srefs + 1] = {s, ':', 'setMask', self:getMask()}
+	srefs[#srefs + 1] = {s, ':', 'setRestitution', self:getRestitution()}
+	srefs[#srefs + 1] = {s, ':', 'setSensor', self:isSensor()}
 	if self:getUserData() ~= nil then
-		srefs[#srefs + 1] = {memo[self], ':', 'setUserData', self:getUserData()}
+		srefs[#srefs + 1] = {s, ':', 'setUserData', self:getUserData()}
 	end
 	return self:getBody(), self:getShape(), self:getDensity()
 end
@@ -155,14 +158,13 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 	if type(t) == 'function' then
 		return 'local _' .. name .. ' = _L ' .. make_safe(dump(t))
 	elseif type(t) == 'userdata' then
-		--FIXME TODO
 		local m = {'local _' .. name .. ' = love.physics.new' .. t:type() .. '('}
 		for i, arg in ipairs{userdata_constructor[t:type()](t, srefs, memo, rev_memo)} do
 			m[#m + 1] = write(arg, memo, rev_memo)
 			m[#m + 1] = ', '
 		end
 		m[#m > 1 and #m or #m + 1] = ')'
-		return table.concat(m)
+		return concat(m)
 	end
 	-- check for class
 	local pretable = '{'
@@ -227,6 +229,29 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 	return concat(m)
 end
 
+local function orderobjects(a, b)
+	if type(a[2]) == 'userdata' then
+		if type(b[2]) ~= 'userdata' then
+			return true
+		end
+		if a[2]:typeOf('World') then
+			return true
+		end
+		if b[2]:typeOf('World') then
+			return false
+		end
+		if a[2]:typeOf('Fixture') then
+			return false
+		end
+		if b[2]:typeOf('Fixture') then
+			return true
+		end
+	elseif type(b[2]) == 'userdata' then
+		return false
+	end
+	return b[1] < a[1]
+end
+
 function M.save_all(savename, ...)
 	local memo = {}
 	local rev_memo = {...}
@@ -244,29 +269,7 @@ function M.save_all(savename, ...)
 	end
 
 	-- phase 2: the right order
-	table.sort(result, function(a, b)
-		if type(a[2]) == 'userdata' then
-			if type(b[2]) ~= 'userdata' then
-				return true
-			end
-			if a[2]:typeOf('World') then
-				return true
-			end
-			if b[2]:typeOf('World') then
-				return false
-			end
-			if a[2]:typeOf('Fixture') then
-				return false
-			end
-			if b[2]:typeOf('Fixture') then
-				return true
-			end
-			return b[1] < a[1]
-		elseif type(b[2]) == 'userdata' then
-			return false
-		end
-		return b[1] < a[1]
-	end)
+	sort(result, orderobjects)
 	for i = 1, #result do
 		result[i] = result[i][3]
 	end
@@ -295,7 +298,7 @@ function M.save_all(savename, ...)
 		r[i * 3 + 1] = ', '
 	end
 	r[#r] = nil
-	result[n] = table.concat(r)
+	result[n] = concat(r)
 
 	-- phase 5: just concatenate everything
 	local contents = concat(result, '\n')
