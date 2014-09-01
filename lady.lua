@@ -17,7 +17,7 @@ end
 
 
 function M.register_class(c, name)
-	name = name or c.name or c.__name__
+	name = name or c.__name__ or c.name
 	assert(type(name) == 'string', 'class must be given a string name')
 	assert(valid_classname(name), 'name must be a valid identifier that doesn\'t start with an underscore')
 	assert(registered_classes_by_name[name] == nil, ('class with the name %s has already been registered'):format(name))
