@@ -5,8 +5,8 @@ Lady is a library to save and load savegames for games made in LÖVE. It is
 based on the fast, robust, richly-featured table serialization library
 [Ser](https://github.com/gvx/Ser).
 
-Lady currently supports MiddleClass, SECS and hump.class. Pull requests to add
-support for more class implementations are welcome.
+Lady currently supports MiddleClass, SECS, hump.class and Slither. Pull
+requests to add support for more class implementations are welcome.
 
 Like Ser itself, you can use, distribute and extend Lady under the terms of the
 MIT license.
@@ -31,6 +31,8 @@ local Player = lady.register_class(class('Player'))
 local Player = lady.register_class(class:new(), 'Player')
 -- using hump.class:
 local Player = lady.register_class(class{}, 'Player')
+-- using Slither:
+lady.register_class(class "Player" {})
 -- if you prefer, you can register your classes in another place
 -- for example, all in the same place:
 lady.register_class(Player, 'Player')
