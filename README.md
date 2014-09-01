@@ -8,6 +8,11 @@ based on the fast, robust, richly-featured table serialization library
 Lady currently supports MiddleClass, SECS, hump.class and Slither. Pull
 requests to add support for more class implementations are welcome.
 
+30log is also supported, as long as you:
+
+1. Don't call `tostring` on any loaded instance of a 30log class.
+2. Don't have methods that make use of upvalues in any 30log class
+
 Like Ser itself, you can use, distribute and extend Lady under the terms of the
 MIT license.
 
