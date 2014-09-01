@@ -141,7 +141,6 @@ function userdata_constructor:Fixture(srefs, memo, rev_memo)
 	local s = memo[self]
 	--the ones commented out are just replicating the data from get/setFilterData
 	--srefs[#srefs + 1] = {s, ':', 'setCategory', self:getCategory()}
-	srefs[#srefs + 1] = {s, ':', 'setDensity', self:getDensity()}
 	srefs[#srefs + 1] = {s, ':', 'setFilterData', self:getFilterData()}
 	srefs[#srefs + 1] = {s, ':', 'setFriction', self:getFriction()}
 	--srefs[#srefs + 1] = {s, ':', 'setGroupIndex', self:getGroupIndex()}
