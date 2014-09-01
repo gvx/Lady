@@ -55,6 +55,7 @@ local function make_safe(text)
 end
 
 local oddvals = {inf = '1/0', ['-inf'] = '-1/0', [tostring(0/0)] = '0/0'}
+local userdata_constructor = {}
 local function write(t, memo, rev_memo)
 	local ty = type(t)
 	if ty == 'number' or ty == 'boolean' or ty == 'nil' then
@@ -62,15 +63,18 @@ local function write(t, memo, rev_memo)
 		return oddvals[t] or t
 	elseif ty == 'string' then
 		return make_safe(t)
-	elseif ty == 'table' or ty == 'function' then
+	elseif ty == 'table' or ty == 'function' or (ty == 'userdata' and userdata_constructor[t:type()]) then
 		if not memo[t] then
 			local index = #rev_memo + 1
 			memo[t] = index
 			rev_memo[index] = t
 		end
 		return '_' .. memo[t]
-	elseif ty == 'userdata' and registered_things_by_value[t] then
-		return registered_things_by_value[t]
+	elseif ty == 'userdata' then
+		if registered_things_by_value[t] then
+			return registered_things_by_value[t]
+		end
+		error("Trying to serialize unregistered userdata " .. t:type())
 	else
 		error("Trying to serialize unsupported type " .. ty)
 	end
@@ -93,9 +97,72 @@ local function is_cyclic(memo, sub, super)
 	return m and p and m < p
 end
 
+function userdata_constructor:World(srefs, memo, rev_memo)
+	if self:getCallbacks() ~= nil then
+		srefs[#srefs + 1] = {memo[self], ':', 'setCallbacks', self:getCallbacks()}
+	end
+	if self:getContactFilter() ~= nil then
+		srefs[#srefs + 1] = {memo[self], ':', 'setContactFilter', self:getContactFilter()}
+	end
+	local x, y = self:getGravity( )
+	return x, y, self:isSleepingAllowed()
+end
+function userdata_constructor:Body(srefs, memo, rev_memo)
+	srefs[#srefs + 1] = {memo[self], ':', 'setSleepingAllowed', self:isSleepingAllowed()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setAngle', self:getAngle()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setAngularDamping', self:getAngularDamping()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setAngularVelocity', self:getAngularVelocity()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setGravityScale', self:getGravityScale()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setInertia', self:getInertia()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setLinearDamping', self:getLinearDamping()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setLinearVelocity', self:getLinearVelocity()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setMass', self:getMass()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setAwake', self:isAwake()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setBullet', self:isBullet()}
+	local x, y = self:getPosition()
+	return self.getWorld and self:getWorld() or rev_memo[1], x, y, self:getType()
+end
+function userdata_constructor:ChainShape(srefs)
+	return false, self:getPoints()
+end
+function userdata_constructor:CircleShape(srefs)
+	local x, y = self:getPoint()
+	return x, y, self:getRadius()
+end
+function userdata_constructor:EdgeShape(srefs)
+	return self:getPoints()
+end
+function userdata_constructor:PolygonShape(srefs)
+	return self:getPoints()
+end
+function userdata_constructor:Fixture(srefs, memo, rev_memo)
+	--the ones commented out are just replicating the data from get/setFilterData
+	--srefs[#srefs + 1] = {memo[self], ':', 'setCategory', self:getCategory()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setDensity', self:getDensity()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setFilterData', self:getFilterData()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setFriction', self:getFriction()}
+	--srefs[#srefs + 1] = {memo[self], ':', 'setGroupIndex', self:getGroupIndex()}
+	--srefs[#srefs + 1] = {memo[self], ':', 'setMask', self:getMask()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setRestitution', self:getRestitution()}
+	srefs[#srefs + 1] = {memo[self], ':', 'setSensor', self:isSensor()}
+	if self:getUserData() ~= nil then
+		srefs[#srefs + 1] = {memo[self], ':', 'setUserData', self:getUserData()}
+	end
+	return self:getBody(), self:getShape(), self:getDensity()
+end
+
 local function write_table_ex(t, memo, rev_memo, srefs, name)
 	if type(t) == 'function' then
 		return 'local _' .. name .. ' = _L ' .. make_safe(dump(t))
+	elseif type(t) == 'userdata' then
+		--FIXME TODO
+		local m = {'local _' .. name .. ' = love.physics.new' .. t:type() .. '('}
+		for i, arg in ipairs{userdata_constructor[t:type()](t, srefs, memo, rev_memo)} do
+			m[#m + 1] = write(arg, memo, rev_memo)
+			m[#m + 1] = ', '
+		end
+		m[#m > 1 and #m or #m + 1] = ')'
+		return table.concat(m)
 	end
 	-- check for class
 	local pretable = '{'
@@ -130,7 +197,7 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 	for i = 1, #t do -- don't use ipairs here, we need the gaps
 		local v = t[i]
 		if v == t or is_cyclic(memo, v, t) then
-			srefs[#srefs + 1] = {name, i, v}
+			srefs[#srefs + 1] = {name, '.', i, v}
 			m[mi + 1] = 'nil, '
 			mi = mi + 1
 		else
@@ -148,7 +215,7 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 				m[mi + 4] = ', '
 				mi = mi + 4
 			elseif v == t or k == t or is_cyclic(memo, v, t) or is_cyclic(memo, k, t) then
-				srefs[#srefs + 1] = {name, k, v}
+				srefs[#srefs + 1] = {name, '.', k, v}
 			else
 				m[mi + 1] = write_key_value_pair(k, v, memo, rev_memo)
 				m[mi + 2] = ', '
@@ -172,19 +239,51 @@ function M.save_all(savename, ...)
 	-- phase 1: recursively descend the table structure
 	local n = 1
 	while rev_memo[n] do
-		result[n] = write_table_ex(rev_memo[n], memo, rev_memo, srefs, n)
+		result[n] = {n, rev_memo[n], write_table_ex(rev_memo[n], memo, rev_memo, srefs, n)}
 		n = n + 1
 	end
 
-	-- phase 2: reverse order
-	for i = 1, (n - 1)*.5 do
-		local j = n - i
-		result[i], result[j] = result[j], result[i]
+	-- phase 2: the right order
+	table.sort(result, function(a, b)
+		if type(a[2]) == 'userdata' then
+			if type(b[2]) ~= 'userdata' then
+				return true
+			end
+			if a[2]:typeOf('World') then
+				return true
+			end
+			if b[2]:typeOf('World') then
+				return false
+			end
+			if a[2]:typeOf('Fixture') then
+				return false
+			end
+			if b[2]:typeOf('Fixture') then
+				return true
+			end
+			return b[1] < a[1]
+		elseif type(b[2]) == 'userdata' then
+			return false
+		end
+		return b[1] < a[1]
+	end)
+	for i = 1, #result do
+		result[i] = result[i][3]
 	end
 
 	-- phase 3: add all the tricky cyclic stuff
 	for i, v in ipairs(srefs) do
-		result[n] = write_key_value_pair(v[2], v[3], memo, rev_memo, '_' .. v[1])
+		if v[2] == '.' then
+			result[n] = write_key_value_pair(v[3], v[4], memo, rev_memo, '_' .. v[1])
+		else
+			local tmp = {'_', v[1], ':', v[3], '('}
+			for i = 4, #v do
+				tmp[i * 2 - 2] = write(v[i], memo, rev_memo)
+				tmp[i * 2 - 1] = ', '
+			end
+			tmp[#tmp] = ')'
+			result[n] = concat(tmp)
+		end
 		n = n + 1
 	end
 
@@ -248,7 +347,7 @@ local load_mt = {__index = registered_things_by_name}
 function M.load_all(savename)
 	local contents = love.filesystem.read(savename)
 	local s = loadstring(contents)
-	setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, _I = slither_instance_mt}, load_mt))
+	setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, _I = slither_instance_mt, love = love}, load_mt))
 	return s()
 end
 
