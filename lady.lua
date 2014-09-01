@@ -100,8 +100,7 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 		posttable = '}, ' .. classname .. ')'
 	elseif registered_classes_by_value[t.__class__] then
 		-- assume Slither
-		local cls = t.__class__
-		classname = registered_classes_by_value[cls]
+		classname = registered_classes_by_value[t.__class__]
 		pretable = '_S({'
 		posttable = '}, _I(' .. classname .. '))'
 	end
