@@ -74,7 +74,7 @@ end
 
 local function write_table_ex(t, memo, rev_memo, srefs, name)
 	if type(t) == 'function' then
-		return 'local _' .. name .. ' = loadstring ' .. make_safe(dump(t))
+		return 'local _' .. name .. ' = _L ' .. make_safe(dump(t))
 	end
 	-- check for class
 	local pretable = '{'
@@ -228,7 +228,7 @@ local load_mt = {__index = registered_classes_by_name}
 function M.load_all(savename)
 	local contents = love.filesystem.read(savename)
 	local s = loadstring(contents)
-	setfenv(s, setmetatable({_S = setmetatable, _M = getmetatable, _I = slither_instance_mt}, load_mt))
+	setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, _I = slither_instance_mt}, load_mt))
 	return s()
 end
 
