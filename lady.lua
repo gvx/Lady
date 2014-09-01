@@ -1,7 +1,7 @@
 local pairs, ipairs, tostring, type, concat, dump, floor = pairs, ipairs, tostring, type, table.concat, string.dump, math.floor
 local M = {}
-local registered_classes_by_name = {}
-local registered_classes_by_value = {}
+local registered_things_by_name = {}
+local registered_things_by_value = {}
 local kw = {['and'] = true, ['break'] = true, ['do'] = true, ['else'] = true,
 	['elseif'] = true, ['end'] = true, ['false'] = true, ['for'] = true,
 	['function'] = true, ['goto'] = true, ['if'] = true, ['in'] = true,
@@ -20,11 +20,30 @@ function M.register_class(c, name)
 	name = name or c.__name__ or c.name
 	assert(type(name) == 'string', 'class must be given a string name')
 	assert(valid_classname(name), 'name must be a valid identifier that doesn\'t start with an underscore')
-	assert(registered_classes_by_name[name] == nil, ('class with the name %s has already been registered'):format(name))
-	assert(registered_classes_by_value[c] == nil, 'class has already been registered')
-	registered_classes_by_name[name] = c
-	registered_classes_by_value[c] = name
+	assert(registered_things_by_name[name] == nil, ('class with the name %s has already been registered'):format(name))
+	assert(registered_things_by_value[c] == nil, 'class has already been registered')
+	registered_things_by_name[name] = c
+	registered_things_by_value[c] = name
 	return c
+end
+
+function M.register_resource(r, name)
+	assert(type(name) == 'string', 'resource must be given a string name')
+	assert(valid_identifier(name), 'name must be a valid identifier')
+	assert(registered_things_by_name['_R' .. name] == nil, ('resource with the name %s has already been registered'):format(name))
+	assert(registered_things_by_value[r] == nil, 'resource has already been registered')
+	name = '_R' .. name
+	registered_things_by_name[name] = r
+	registered_things_by_value[r] = name
+	return r
+end
+
+function M.register_resource_table(rt, tname)
+	tname = tname and tname .. '_' or ''
+	for k, v in pairs(rt) do
+		M.register_resource(v, tname .. k)
+	end
+	return rt
 end
 
 local function getchr(c)
@@ -50,6 +69,8 @@ local function write(t, memo, rev_memo)
 			rev_memo[index] = t
 		end
 		return '_' .. memo[t]
+	elseif ty == 'userdata' and registered_things_by_value[t] then
+		return registered_things_by_value[t]
 	else
 		error("Trying to serialize unsupported type " .. ty)
 	end
@@ -81,26 +102,26 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 	local posttable = '}'
 	local classkey = nil
 	local classname = nil
-	if registered_classes_by_value[t.class] then
+	if registered_things_by_value[t.class] then
 		-- assume MiddleClass
-		classname = registered_classes_by_value[t.class]
+		classname = registered_things_by_value[t.class]
 		classkey = 'class'
 		pretable = '_S({'
 		posttable = '}, ' .. classname .. '.__instanceDict)'
-	elseif registered_classes_by_value[t.__baseclass] then
+	elseif registered_things_by_value[t.__baseclass] then
 		-- assume SECS
-		classname = registered_classes_by_value[t.__baseclass]
+		classname = registered_things_by_value[t.__baseclass]
 		classkey = '__baseclass'
 		pretable = '_S({'
 		posttable = '}, _M(' .. classname .. '))'
-	elseif registered_classes_by_value[getmetatable(t)] then
+	elseif registered_things_by_value[getmetatable(t)] then
 		-- assume hump.class
-		classname = registered_classes_by_value[getmetatable(t)]
+		classname = registered_things_by_value[getmetatable(t)]
 		pretable = '_S({'
 		posttable = '}, ' .. classname .. ')'
-	elseif registered_classes_by_value[t.__class__] then
+	elseif registered_things_by_value[t.__class__] then
 		-- assume Slither
-		classname = registered_classes_by_value[t.__class__]
+		classname = registered_things_by_value[t.__class__]
 		pretable = '_S({'
 		posttable = '}, _I(' .. classname .. '))'
 	end
@@ -223,7 +244,7 @@ local function slither_instance_mt(cls)
 	return mt
 end
 
-local load_mt = {__index = registered_classes_by_name}
+local load_mt = {__index = registered_things_by_name}
 function M.load_all(savename)
 	local contents = love.filesystem.read(savename)
 	local s = loadstring(contents)
