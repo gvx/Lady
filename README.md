@@ -45,6 +45,12 @@ class "Player" {
 lady.register_class(Player, 'Player')
 lady.register_class(Enemy, 'Enemy')
 lady.register_class(Goal, 'Goal')
+-- if you use MiddleClass, you don't have to register every class manually if
+-- you include the following function definition after importing MiddleClass
+-- and Lady:
+function class.Object.static:subclassed(other)
+    lady.register_class(other)
+end
 ```
 
 When you want to save your game:
