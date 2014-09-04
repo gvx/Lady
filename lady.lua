@@ -1,9 +1,11 @@
 local pairs, ipairs, tostring, type, getmetatable, setmetatable, concat, sort, dump, floor = pairs, ipairs, tostring, type, getmetatable, setmetatable, table.concat, table.sort, string.dump, math.floor
+local weakkeys = {__mode = 'k'}
+local weakvalues = {__mode = 'v'}
 local M = {}
 local registered_things_by_name = {}
 local registered_things_by_value = {}
-local joint_bodies = {}
-local body_joints = {}
+local joint_bodies = setmetatable({}, weakkeys)
+local body_joints = setmetatable({}, weakkeys)
 local kw = {['and'] = true, ['break'] = true, ['do'] = true, ['else'] = true,
 	['elseif'] = true, ['end'] = true, ['false'] = true, ['for'] = true,
 	['function'] = true, ['goto'] = true, ['if'] = true, ['in'] = true,
@@ -59,7 +61,7 @@ if love.physics then
 	local newDistanceJoint = love.physics.newDistanceJoint
 	function love.physics.newDistanceJoint(body1, body2, ...)
 		local joint = newDistanceJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
@@ -67,7 +69,7 @@ if love.physics then
 	local newFrictionJoint = love.physics.newFrictionJoint
 	function love.physics.newFrictionJoint(body1, body2, ...)
 		local joint = newFrictionJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
@@ -75,7 +77,7 @@ if love.physics then
 	local newGearJoint = love.physics.newGearJoint
 	function love.physics.newGearJoint(joint1, joint2, ...)
 		local joint = newGearJoint(joint1, joint2, ...)
-		joint_bodies[joint] = {joint1, joint2}
+		joint_bodies[joint] = setmetatable({joint1, joint2}, weakvalues)
 		add_body_joint(joint1, joint)
 		add_body_joint(joint2, joint)
 		return joint
@@ -83,7 +85,7 @@ if love.physics then
 	local newMouseJoint = love.physics.newMouseJoint
 	function love.physics.newMouseJoint(body, ...)
 		local joint = newMouseJoint(body, ...)
-		joint_bodies[joint] = {body}
+		joint_bodies[joint] = setmetatable({body}, weakvalues)
 		add_body_joint(body, joint)
 		add_body_joint(body, joint)
 		return joint
@@ -91,7 +93,7 @@ if love.physics then
 	local newPrismaticJoint = love.physics.newPrismaticJoint
 	function love.physics.newPrismaticJoint(body1, body2, ...)
 		local joint = newPrismaticJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
@@ -99,7 +101,7 @@ if love.physics then
 	local newPulleyJoint = love.physics.newPulleyJoint
 	function love.physics.newPulleyJoint(body1, body2, ...)
 		local joint = newPulleyJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
@@ -107,7 +109,7 @@ if love.physics then
 	local newRevoluteJoint = love.physics.newRevoluteJoint
 	function love.physics.newRevoluteJoint(body1, body2, ...)
 		local joint = newRevoluteJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
@@ -115,7 +117,7 @@ if love.physics then
 	local newRopeJoint = love.physics.newRopeJoint
 	function love.physics.newRopeJoint(body1, body2, ...)
 		local joint = newRopeJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
@@ -123,7 +125,7 @@ if love.physics then
 	local newWeldJoint = love.physics.newWeldJoint
 	function love.physics.newWeldJoint(body1, body2, ...)
 		local joint = newWeldJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
@@ -131,7 +133,7 @@ if love.physics then
 	local newWheelJoint = love.physics.newWheelJoint
 	function love.physics.newWheelJoint(body1, body2, ...)
 		local joint = newWheelJoint(body1, body2, ...)
-		joint_bodies[joint] = {body1, body2}
+		joint_bodies[joint] = setmetatable({body1, body2}, weakvalues)
 		add_body_joint(body1, joint)
 		add_body_joint(body2, joint)
 		return joint
