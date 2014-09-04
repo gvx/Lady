@@ -2,6 +2,8 @@ local pairs, ipairs, tostring, type, getmetatable, setmetatable, concat, sort, d
 local M = {}
 local registered_things_by_name = {}
 local registered_things_by_value = {}
+local joint_bodies = {}
+local body_joints = {}
 local kw = {['and'] = true, ['break'] = true, ['do'] = true, ['else'] = true,
 	['elseif'] = true, ['end'] = true, ['false'] = true, ['for'] = true,
 	['function'] = true, ['goto'] = true, ['if'] = true, ['in'] = true,
@@ -46,6 +48,97 @@ function M.register_resource_table(rt, tname)
 	return rt
 end
 
+local function add_body_joint(body, joint)
+	if not body_joints[body] then
+		body_joints[body] = {}
+	end
+	body_joints[body][#body_joints[body] + 1] = joint
+end
+
+if love.physics then
+	local newDistanceJoint = love.physics.newDistanceJoint
+	function love.physics.newDistanceJoint(body1, body2, ...)
+		local joint = newDistanceJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+	local newFrictionJoint = love.physics.newFrictionJoint
+	function love.physics.newFrictionJoint(body1, body2, ...)
+		local joint = newFrictionJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+	local newGearJoint = love.physics.newGearJoint
+	function love.physics.newGearJoint(joint1, joint2, ...)
+		local joint = newGearJoint(joint1, joint2, ...)
+		joint_bodies[joint] = {joint1, joint2}
+		add_body_joint(joint1, joint)
+		add_body_joint(joint2, joint)
+		return joint
+	end
+	local newMouseJoint = love.physics.newMouseJoint
+	function love.physics.newMouseJoint(body, ...)
+		local joint = newMouseJoint(body, ...)
+		joint_bodies[joint] = {body}
+		add_body_joint(body, joint)
+		add_body_joint(body, joint)
+		return joint
+	end
+	local newPrismaticJoint = love.physics.newPrismaticJoint
+	function love.physics.newPrismaticJoint(body1, body2, ...)
+		local joint = newPrismaticJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+	local newPulleyJoint = love.physics.newPulleyJoint
+	function love.physics.newPulleyJoint(body1, body2, ...)
+		local joint = newPulleyJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+	local newRevoluteJoint = love.physics.newRevoluteJoint
+	function love.physics.newRevoluteJoint(body1, body2, ...)
+		local joint = newRevoluteJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+	local newRopeJoint = love.physics.newRopeJoint
+	function love.physics.newRopeJoint(body1, body2, ...)
+		local joint = newRopeJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+	local newWeldJoint = love.physics.newWeldJoint
+	function love.physics.newWeldJoint(body1, body2, ...)
+		local joint = newWeldJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+	local newWheelJoint = love.physics.newWheelJoint
+	function love.physics.newWheelJoint(body1, body2, ...)
+		local joint = newWheelJoint(body1, body2, ...)
+		joint_bodies[joint] = {body1, body2}
+		add_body_joint(body1, joint)
+		add_body_joint(body2, joint)
+		return joint
+	end
+
+end
+
 local function getchr(c)
 	return "\\" .. c:byte()
 end
@@ -63,7 +156,7 @@ local function write(t, memo, rev_memo)
 		return oddvals[t] or t
 	elseif ty == 'string' then
 		return make_safe(t)
-	elseif ty == 'table' or ty == 'function' or (ty == 'userdata' and userdata_constructor[t:type()]) then
+	elseif ty == 'table' or ty == 'function' or (ty == 'userdata' and userdata_constructor[t:type()] and not registered_things_by_value[t]) then
 		if not memo[t] then
 			local index = #rev_memo + 1
 			memo[t] = index
@@ -121,6 +214,17 @@ function userdata_constructor:Body(srefs, memo, rev_memo)
 	srefs[#srefs + 1] = {s, ':', 'setMass', self:getMass()}
 	srefs[#srefs + 1] = {s, ':', 'setAwake', self:isAwake()}
 	srefs[#srefs + 1] = {s, ':', 'setBullet', self:isBullet()}
+
+	if body_joints[self] then
+		for i, joint in ipairs(body_joints[self]) do
+			if not memo[joint] then
+				local index = #rev_memo + 1
+				memo[joint] = index
+				rev_memo[index] = joint
+			end
+		end
+	end
+
 	local x, y = self:getPosition()
 	return self.getWorld and self:getWorld() or rev_memo[1], x, y, self:getType()
 end
@@ -151,6 +255,90 @@ function userdata_constructor:Fixture(srefs, memo, rev_memo)
 		srefs[#srefs + 1] = {s, ':', 'setUserData', self:getUserData()}
 	end
 	return self:getBody(), self:getShape(), self:getDensity()
+end
+function userdata_constructor:DistanceJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setDamping', self:getDamping()}
+	srefs[#srefs + 1] = {s, ':', 'setDampingRatio', self:getDampingRatio()}
+	srefs[#srefs + 1] = {s, ':', 'setFrequency', self:getFrequency()}
+	srefs[#srefs + 1] = {s, ':', 'setLength', self:getLength()}
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1, x2, y2 = self:getAnchors()
+	return body1, body2, x1, y1, x2, y2, self:getCollideConnected()
+end
+function userdata_constructor:FrictionJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setMaxForce', self:getMaxForce()}
+	srefs[#srefs + 1] = {s, ':', 'setMaxTorque', self:getMaxTorque()}
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1 = self:getAnchors()
+	return body1, body2, x1, y1, self:getCollideConnected()
+end
+function userdata_constructor:GearJoint(srefs)
+	local joint1, joint2 = unpack(joint_bodies)
+	return joint1, joint2, self:getRatio(), self:getCollideConnected()
+end
+function userdata_constructor:MouseJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setDampingRatio', self:getDampingRatio()}
+	srefs[#srefs + 1] = {s, ':', 'setFrequency', self:getFrequency()}
+	srefs[#srefs + 1] = {s, ':', 'setMaxForce', self:getMaxForce()}
+	local body = unpack(joint_bodies)
+	return body, self:getTarget()
+end
+function userdata_constructor:PrismaticJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setLimits', self:getLimits()}
+	srefs[#srefs + 1] = {s, ':', 'setLimitsEnabled', self:hasLimitsEnabled()}
+	srefs[#srefs + 1] = {s, ':', 'setMaxMotorForce', self:getMaxMotorForce()}
+	srefs[#srefs + 1] = {s, ':', 'setMotorEnabled', self:isMotorEnabled()}
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1, x2, y2 = self:getAnchors()
+	return body1, body2, x1, y1, x2, y2, self:getCollideConnected()
+end
+function userdata_constructor:PulleyJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setConstant', self:getConstant()}
+	srefs[#srefs + 1] = {s, ':', 'setMaxLengths', self:getMaxLengths()}
+	local body1, body2 = unpack(joint_bodies)
+	local gx1, gy1, gx2, gy2 = self:getGroundAnchors()
+	local x1, y1, x2, y2 = self:getAnchors()
+	return body1, body2, gx1, gy1, gx2, gy2, gx1, gy1, gx2, gy2, self:getRatio(), self:getCollideConnected()
+end
+function userdata_constructor:RevoluteJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setLimits', self:getLimits()}
+	srefs[#srefs + 1] = {s, ':', 'setLimitsEnabled', self:hasLimitsEnabled()}
+	srefs[#srefs + 1] = {s, ':', 'setMaxMotorTorque', self:getMaxMotorTorque()}
+	srefs[#srefs + 1] = {s, ':', 'setMotorEnabled', self:isMotorEnabled()}
+	srefs[#srefs + 1] = {s, ':', 'setMotorSpeed', self:getMotorSpeed()}
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1 = self:getAnchors()
+	return body1, body2, x1, y1, self:getCollideConnected()
+end
+function userdata_constructor:RopeJoint(srefs)
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1, x2, y2 = self:getAnchors()
+	return body1, body2, x1, y1, x2, y2, self:getMaxLength(), self:getCollideConnected()
+end
+function userdata_constructor:WeldJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setDampingRatio', self:getDampingRatio()}
+	srefs[#srefs + 1] = {s, ':', 'setFrequency', self:getFrequency()}
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1, x2, y2 = self:getAnchors()
+	return body1, body2, x1, y1, x2, y2, self:getCollideConnected()
+end
+function userdata_constructor:WheelJoint(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setMaxMotorTorque', self:getMaxMotorTorque()}
+	srefs[#srefs + 1] = {s, ':', 'setMotorEnabled', self:isMotorEnabled()}
+	srefs[#srefs + 1] = {s, ':', 'setMotorSpeed', self:getMotorSpeed()}
+	srefs[#srefs + 1] = {s, ':', 'setSpringDampingRatio', self:getSpringDampingRatio()}
+	srefs[#srefs + 1] = {s, ':', 'setSpringFrequency', self:getSpringFrequency()}
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1, x2, y2 = self:getAnchors()
+	return body1, body2, x1, y1, x2, y2, self:getCollideConnected()
 end
 
 local function write_table_ex(t, memo, rev_memo, srefs, name)
@@ -243,6 +431,12 @@ local function orderobjects(a, b)
 			return false
 		end
 		if b[2]:typeOf('Fixture') then
+			return true
+		end
+		if a[2]:typeOf('Joint') then
+			return false
+		end
+		if b[2]:typeOf('Joint') then
 			return true
 		end
 	elseif type(b[2]) == 'userdata' then
