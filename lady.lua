@@ -409,8 +409,8 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 	elseif registered_things_by_value[t.__class__] then
 		-- assume Slither
 		classname = registered_things_by_value[t.__class__]
-		pretable = '_S({'
-		posttable = '}, _I(' .. classname .. '))'
+		pretable = '_M(' .. classname .. ').allocate {'
+		posttable = '}'
 	end
 	local m = {'local _', name, ' = ', pretable}
 	local mi = 4
@@ -531,50 +531,11 @@ function M.save_all(savename, ...)
 	love.filesystem.write(savename, contents)
 end
 
-local function slithernewindex(self, key, value)
-	if self.__setattr__ then
-		return self:__setattr__(key, value)
-	else
-		return rawset(self, key, value)
-	end
-end
-
-local function slither_instance_mt(cls)
-	local smt = getmetatable(cls)
-	local mt = {__index = smt.__index, __newindex = slithernewindex}
-
-	if cls.__cmp__ then
-		if not smt.eq or not smt.lt then
-			function smt.eq(a, b)
-				return a.__cmp__(a, b) == 0
-			end
-			function smt.lt(a, b)
-				return a.__cmp__(a, b) < 0
-			end
-		end
-		mt.__eq = smt.eq
-		mt.__lt = smt.lt
-	end
-
-	for i, v in pairs{
-		__call__ = "__call", __len__ = "__len",
-		__add__ = "__add", __sub__ = "__sub",
-		__mul__ = "__mul", __div__ = "__div",
-		__mod__ = "__mod", __pow__ = "__pow",
-		__neg__ = "__unm", __concat__ = "__concat",
-		__str__ = "__tostring",
-		} do
-		if cls[i] then mt[v] = cls[i] end
-	end
-
-	return mt
-end
-
 local load_mt = {__index = registered_things_by_name}
 function M.load_all(savename)
 	local contents = love.filesystem.read(savename)
 	local s = loadstring(contents)
-	setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, _I = slither_instance_mt, love = love}, load_mt))
+	setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, love = love}, load_mt))
 	return s()
 end
 
