@@ -340,6 +340,35 @@ function userdata_constructor:WheelJoint(srefs)
 	local x1, y1, x2, y2 = self:getAnchors()
 	return body1, body2, x1, y1, x2, y2, self:getCollideConnected()
 end
+function userdata_constructor:ParticleSystem(srefs)
+	local s = memo[self]
+	srefs[#srefs + 1] = {s, ':', 'setAreaSpread', self:getAreaSpread()}
+	srefs[#srefs + 1] = {s, ':', 'setColors', self:getColors()}
+	srefs[#srefs + 1] = {s, ':', 'setDirection', self:getDirection()}
+	srefs[#srefs + 1] = {s, ':', 'setEmissionRate', self:getEmissionRate()}
+	srefs[#srefs + 1] = {s, ':', 'setEmitterLifetime', self:getEmitterLifetime()}
+	srefs[#srefs + 1] = {s, ':', 'setInsertMode', self:getInsertMode()}
+	srefs[#srefs + 1] = {s, ':', 'setLinearAcceleration', self:getLinearAcceleration()}
+	srefs[#srefs + 1] = {s, ':', 'setOffset', self:getOffset()}
+	srefs[#srefs + 1] = {s, ':', 'setParticleLifetime', self:getParticleLifetime()}
+	srefs[#srefs + 1] = {s, ':', 'setPosition', self:getPosition()}
+	srefs[#srefs + 1] = {s, ':', 'setRadialAcceleration', self:getRadialAcceleration()}
+	srefs[#srefs + 1] = {s, ':', 'setRelativeRotation', self:getRelativeRotation()}
+	srefs[#srefs + 1] = {s, ':', 'setRotation', self:getRotation()}
+	srefs[#srefs + 1] = {s, ':', 'setSizeVariation', self:getSizeVariation()}
+	srefs[#srefs + 1] = {s, ':', 'setSizes', self:getSizes()}
+	srefs[#srefs + 1] = {s, ':', 'setSpeed', self:getSpeed()}
+	srefs[#srefs + 1] = {s, ':', 'setSpin', self:getSpin()}
+	srefs[#srefs + 1] = {s, ':', 'setSpinVariation', self:getSpinVariation()}
+	srefs[#srefs + 1] = {s, ':', 'setSpread', self:getSpread()}
+	srefs[#srefs + 1] = {s, ':', 'setTangentialAcceleration', self:getTangentialAcceleration()}
+	if self:isActive() then
+		srefs[#srefs + 1] = {s, ':', 'start('}
+	end
+	local body1, body2 = unpack(joint_bodies)
+	local x1, y1, x2, y2 = self:getAnchors()
+	return self:getTexture(), self:getBufferSize()
+end
 
 local function write_table_ex(t, memo, rev_memo, srefs, name)
 	if type(t) == 'function' then
