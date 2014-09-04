@@ -1,7 +1,12 @@
 local pairs, ipairs, tostring, type, getmetatable, setmetatable, concat, sort, dump, floor = pairs, ipairs, tostring, type, getmetatable, setmetatable, table.concat, table.sort, string.dump, math.floor
 local weakkeys = {__mode = 'k'}
 local weakvalues = {__mode = 'v'}
-local M = {}
+local M = {
+	_VERSION = 'Lady 0.1',
+	_DESCRIPTION = 'Easy saving and loading for LÖVE games',
+	_URL = 'http://github.com/gvx/Lady',
+	_LICENSE = 'MIT License',
+}
 local registered_things_by_name = {}
 local registered_things_by_value = {}
 local joint_bodies = setmetatable({}, weakkeys)
