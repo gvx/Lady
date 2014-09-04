@@ -97,3 +97,18 @@ The values are returned in the same order as they were passed to
 
 No constructors will be called for any of the objects directly or indirectly
 loaded.
+
+###`lady.register_resource(resource, name)`
+
+Registers a `resource` (generally `Image`s and `Source`s). The `name` provided
+should be a valid identifier. Note that this name will receive a prefix in the
+save file, so it _can_ start with an underscore and names will not conflict
+with class names even if they are the same.
+
+###`lady.register_resource_table(resource_table[, name])`
+
+Register all resources found as values in `resource_table`. They are expected
+to use string keys, which will be used as the resource names. If `name` is
+passed, it will be used as a prefix for all the resource names in this table.
+This can be used to prevent conflicts if there are different resource tables
+which might share some keys.
