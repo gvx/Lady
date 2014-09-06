@@ -112,3 +112,9 @@ to use string keys, which will be used as the resource names. If `name` is
 passed, it will be used as a prefix for all the resource names in this table.
 This can be used to prevent conflicts if there are different resource tables
 which might share some keys.
+
+See also
+--------
+
+* [Ser](https://github.com/gvx/Ser): for trusted-source serialization
+* [Smallfolk](https://github.com/gvx/Smallfolk): for untrusted-source serialization
