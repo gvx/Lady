@@ -56,13 +56,13 @@ end
 When you want to save your game:
 
 ```lua
-lady.save_all(user_input, player, enemy_list, goal_list)
+lady.save_all(file_name, player, enemy_list, goal_list)
 ```
 
 And to load:
 
 ```lua
-player, enemy_list, goal_list = lady.load_all(selected_name)
+player, enemy_list, goal_list = lady.load_all(file_name)
 ```
 
 Reference
@@ -81,16 +81,15 @@ classname to `lady.register_class`.
 
 This function returns `class`, so it can be used as a decorator.
 
-###`lady.save_all(filename, ...)`
+###`lady.save_all(filename, objects...)`
 
-Saves the values passed as additional arguments to the `filename` provided.
-`love.filesystem` is used, so it can be found in the
+Saves all the `objects` passed to a file named `filename` in the
 [save directory](http://love2d.org/wiki/love.filesystem).
 
 ###`lady.load_all(filename)`
 
-Returns the values saved in the `filename` provided. `love.filesystem` is used,
-so it looks in the [save directory](http://love2d.org/wiki/love.filesystem).
+Returns the objects from the file `filename`
+in the [save directory](http://love2d.org/wiki/love.filesystem).
 
 The values are returned in the same order as they were passed to
 `lady.save_all`.
