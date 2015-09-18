@@ -1,8 +1,8 @@
-local pairs, ipairs, tostring, type, getmetatable, setmetatable, concat, sort, dump, floor = pairs, ipairs, tostring, type, getmetatable, setmetatable, table.concat, table.sort, string.dump, math.floor
+local pairs, ipairs, tostring, type, getmetatable, setmetatable, concat, sort, dump, format, floor = pairs, ipairs, tostring, type, getmetatable, setmetatable, table.concat, table.sort, string.dump, string.format, math.floor
 local weakkeys = {__mode = 'k'}
 local weakvalues = {__mode = 'v'}
 local M = {
-	_VERSION = 'Lady 0.1',
+	_VERSION = 'Lady 0.2',
 	_DESCRIPTION = 'Easy saving and loading for LÖVE games',
 	_URL = 'http://github.com/gvx/Lady',
 	_LICENSE = 'MIT License',
@@ -154,13 +154,15 @@ local function make_safe(text)
 	return ("%q"):format(text):gsub('\n', 'n'):gsub("[\128-\255]", getchr)
 end
 
-local oddvals = {inf = '1/0', ['-inf'] = '-1/0', [tostring(0/0)] = '0/0'}
+local oddvals = {[tostring(1/0)] = '1/0', [tostring(-1/0)] = '-1/0', [tostring(0/0)] = '0/0'}
 local userdata_constructor = {}
 local function write(t, memo, rev_memo)
 	local ty = type(t)
-	if ty == 'number' or ty == 'boolean' or ty == 'nil' then
-		t = tostring(t)
+	if ty == 'number' then
+		t = format("%.17g", t)
 		return oddvals[t] or t
+	elseif ty == 'boolean' or ty == 'nil' then
+		return tostring(t)
 	elseif ty == 'string' then
 		return make_safe(t)
 	elseif ty == 'table' or ty == 'function' or (ty == 'userdata' and userdata_constructor[t:type()] and not registered_things_by_value[t]) then
@@ -169,7 +171,7 @@ local function write(t, memo, rev_memo)
 			memo[t] = index
 			rev_memo[index] = t
 		end
-		return '_' .. memo[t]
+		return '_[' .. memo[t] .. ']'
 	elseif ty == 'userdata' then
 		if registered_things_by_value[t] then
 			return registered_things_by_value[t]
@@ -182,9 +184,9 @@ end
 
 local function write_key_value_pair(k, v, memo, rev_memo, name)
 	if type(k) == 'string' and valid_identifier(k) then
-		return (name and name .. '.' or '') .. k ..' = ' .. write(v, memo, rev_memo)
+		return (name and name .. '.' or '') .. k ..'=' .. write(v, memo, rev_memo)
 	else
-		return (name or '') .. '[' .. write(k, memo, rev_memo) .. '] = ' .. write(v, memo, rev_memo)
+		return (name or '') .. '[' .. write(k, memo, rev_memo) .. ']=' .. write(v, memo, rev_memo)
 	end
 end
 
@@ -379,15 +381,13 @@ end
 
 local function write_table_ex(t, memo, rev_memo, srefs, name)
 	if type(t) == 'function' then
-		return 'local _' .. name .. ' = _L ' .. make_safe(dump(t))
+		return '_[' .. name .. ']=_L' .. make_safe(dump(t))
 	elseif type(t) == 'userdata' then
-		local m = {'local _' .. name .. ' = love.physics.new' .. t:type() .. '('}
+		local m = {}
 		for i, arg in ipairs{userdata_constructor[t:type()](t, srefs, memo, rev_memo)} do
-			m[#m + 1] = write(arg, memo, rev_memo)
-			m[#m + 1] = ', '
+			m[i] = write(arg, memo, rev_memo)
 		end
-		m[#m > 1 and #m or #m + 1] = ')'
-		return concat(m)
+		return '_[' .. name .. ']=love.physics.new' .. t:type() .. '(' + concat(m, ',') + ')'
 	end
 	-- check for class
 	local pretable = '{'
@@ -399,57 +399,51 @@ local function write_table_ex(t, memo, rev_memo, srefs, name)
 		classname = registered_things_by_value[t.class]
 		classkey = 'class'
 		pretable = '_S({'
-		posttable = '}, ' .. classname .. '.__instanceDict)'
+		posttable = '},' .. classname .. '.__instanceDict)'
 	elseif registered_things_by_value[t.__baseclass] then
 		-- assume SECS
 		classname = registered_things_by_value[t.__baseclass]
 		classkey = '__baseclass'
 		pretable = '_S({'
-		posttable = '}, _M(' .. classname .. '))'
+		posttable = '},_M(' .. classname .. '))'
 	elseif registered_things_by_value[getmetatable(t)] then
 		-- assume hump.class
 		classname = registered_things_by_value[getmetatable(t)]
 		pretable = '_S({'
-		posttable = '}, ' .. classname .. ')'
+		posttable = '},' .. classname .. ')'
 	elseif registered_things_by_value[t.__class__] then
 		-- assume Slither
 		classname = registered_things_by_value[t.__class__]
-		pretable = '_M(' .. classname .. ').allocate {'
+		pretable = '_M(' .. classname .. ').allocate{'
 		posttable = '}'
 	end
-	local m = {'local _', name, ' = ', pretable}
-	local mi = 4
+	local m = {}
+	local mi = 1
 	for i = 1, #t do -- don't use ipairs here, we need the gaps
 		local v = t[i]
 		if v == t or is_cyclic(memo, v, t) then
 			srefs[#srefs + 1] = {name, '.', i, v}
-			m[mi + 1] = 'nil, '
+			m[mi] = 'nil'
 			mi = mi + 1
 		else
-			m[mi + 1] = write(v, memo, rev_memo)
-			m[mi + 2] = ', '
-			mi = mi + 2
+			m[mi] = write(v, memo, rev_memo)
+			mi = mi + 1
 		end
 	end
 	for k,v in pairs(t) do
 		if type(k) ~= 'number' or floor(k) ~= k or k < 1 or k > #t then
 			if k == classkey then
-				m[mi + 1] = k
-				m[mi + 2] = ' = '
-				m[mi + 3] = classname
-				m[mi + 4] = ', '
-				mi = mi + 4
+				m[mi] = k .. '=' .. classname
+				mi = mi + 1
 			elseif v == t or k == t or is_cyclic(memo, v, t) or is_cyclic(memo, k, t) then
 				srefs[#srefs + 1] = {name, '.', k, v}
 			else
-				m[mi + 1] = write_key_value_pair(k, v, memo, rev_memo)
-				m[mi + 2] = ', '
-				mi = mi + 2
+				m[mi] = write_key_value_pair(k, v, memo, rev_memo)
+				mi = mi + 1
 			end
 		end
 	end
-	m[mi > 4 and mi or mi + 1] = posttable
-	return concat(m)
+	return '_[' .. name .. ']=' .. pretable .. concat(m, ',') .. posttable
 end
 
 local function orderobjects(a, b)
@@ -506,12 +500,12 @@ function M.save_all(savename, ...)
 	-- phase 3: add all the tricky cyclic stuff
 	for i, v in ipairs(srefs) do
 		if v[2] == '.' then
-			result[n] = write_key_value_pair(v[3], v[4], memo, rev_memo, '_' .. v[1])
+			result[n] = write_key_value_pair(v[3], v[4], memo, rev_memo, '_[' .. v[1] .. ']')
 		else
-			local tmp = {'_', v[1], ':', v[3], '('}
+			local tmp = {'_[', v[1], ']:', v[3], '('}
 			for i = 4, #v do
 				tmp[i * 2 - 2] = write(v[i], memo, rev_memo)
-				tmp[i * 2 - 1] = ', '
+				tmp[i * 2 - 1] = ','
 			end
 			tmp[#tmp] = ')'
 			result[n] = concat(tmp)
@@ -522,24 +516,24 @@ function M.save_all(savename, ...)
 	-- phase 4: add something about returning the main tables
 	local r = {'return '}
 	for i = 1, select('#', ...) do
-		r[i * 3 - 1] = '_'
+		r[i * 3 - 1] = '_['
 		r[i * 3] = tostring(i)
-		r[i * 3 + 1] = ', '
+		r[i * 3 + 1] = '],'
 	end
-	r[#r] = nil
+	r[#r] = ']'
 	result[n] = concat(r)
 
 	-- phase 5: just concatenate everything
 	local contents = concat(result, '\n')
 	
 	-- phase 6: store contents
-	love.filesystem.write(savename, contents)
+	love.filesystem.write(savename, n > 1 and 'local _={}\n' .. contents or contents)
 end
 
 local load_mt = {__index = registered_things_by_name}
 function M.load_all(savename)
 	local contents = love.filesystem.read(savename)
-	local s = loadstring(contents)
+	local s = assert(loadstring(contents))
 	setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, love = love}, load_mt))
 	return s()
 end
