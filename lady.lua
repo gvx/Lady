@@ -533,9 +533,14 @@ end
 local load_mt = {__index = registered_things_by_name}
 function M.load_all(savename)
 	local contents = love.filesystem.read(savename)
-	local s = assert(loadstring(contents))
-	setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, love = love}, load_mt))
-	return s()
+	if contents then
+		local s = loadstring(contents)
+		if not s then return nil end
+		setfenv(s, setmetatable({_L = loadstring, _S = setmetatable, _M = getmetatable, love = love}, load_mt))
+		return s()
+	else
+		return nil
+	end
 end
 
 return M
